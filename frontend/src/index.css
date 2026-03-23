@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root {
+  --background: #111827; /* Default gray-900 background */
+}
+
+body {
+  margin: 0;
+  display: block;
+  min-width: 100vw;
+  min-height: 100vh;
+  background-color: var(--background);
+}
