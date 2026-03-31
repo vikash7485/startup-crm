@@ -25,11 +25,11 @@ const Login = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.error?.message || data.message || 'Login failed');
       }
 
       // Save token to localStorage
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('token', data.data?.token || data.token);
       
       // Redirect to dashboard
       navigate('/');

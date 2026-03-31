@@ -26,12 +26,16 @@ const Signup = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Registration failed');
+        throw new Error(data.error?.message || data.message || 'Registration failed');
       }
 
-      // Automatically go to login or log them in directly
-      // Since backend doesn't return token on register, we go to login
-      navigate('/login');
+      // Auto-login: save token and redirect to dashboard
+      if (data.data?.token) {
+        localStorage.setItem('token', data.data.token);
+        navigate('/');
+      } else {
+        navigate('/login');
+      }
     } catch (err) {
       setError(err.message);
     } finally {

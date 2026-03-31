@@ -1,4 +1,4 @@
-# startup-crm
+# 🚀 Startup CRM
 
 A modern, full-stack **Customer Relationship Management (CRM)** web application built for startups. Manage your leads, deals pipeline, and key business metrics from a single, clean dashboard.
 
