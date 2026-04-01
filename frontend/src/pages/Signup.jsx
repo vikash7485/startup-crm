@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { authApi } from '../services/api';
 
 const Signup = () => {
   const [name, setName] = useState('');
@@ -15,19 +16,8 @@ const Signup = () => {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error?.message || data.message || 'Registration failed');
-      }
+      const res = await authApi.register({ name, email, password });
+      const data = res.data;
 
       // Auto-login: save token and redirect to dashboard
       if (data.data?.token) {

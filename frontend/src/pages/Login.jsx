@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { authApi } from '../services/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -14,19 +15,8 @@ const Login = () => {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error?.message || data.message || 'Login failed');
-      }
+      const res = await authApi.login({ email, password });
+      const data = res.data;
 
       // Save token to localStorage
       localStorage.setItem('token', data.data?.token || data.token);
