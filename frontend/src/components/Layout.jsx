@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, Briefcase,
-  Menu, X, LogOut, ChevronRight
+  Menu, X, LogOut, ChevronRight, Settings as SettingsIcon
 } from "lucide-react";
+import NotificationBell from "./NotificationBell.jsx";
 // Dashboard layout without chat widget
 
 const navItems = [
@@ -78,8 +79,24 @@ const Layout = ({ children }) => {
           ))}
         </nav>
 
-        {/* Logout */}
-        <div className="p-3 border-t border-gray-800">
+        {/* Settings & Logout */}
+        <div className="p-3 border-t border-gray-800 space-y-1">
+          <NavLink
+            to="/settings"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) => `
+              flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
+              transition-all duration-200 group
+              ${isActive
+                ? "bg-indigo-500/10 text-indigo-400 shadow-sm shadow-indigo-500/5"
+                : "text-gray-400 hover:text-white hover:bg-gray-800/60"
+              }
+            `}
+          >
+            <SettingsIcon size={20} />
+            <span>Settings</span>
+          </NavLink>
+
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
@@ -103,6 +120,7 @@ const Layout = ({ children }) => {
             <Menu size={22} />
           </button>
           <div className="flex-1" />
+          <NotificationBell />
         </header>
 
         {/* Page content */}

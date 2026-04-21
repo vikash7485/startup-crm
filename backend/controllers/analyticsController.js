@@ -144,4 +144,4 @@ export const getDealStatusBreakdown = async (req, res) => {
   } catch (error) {
     return errorResponse(res, error.message, 500, "SERVER_ERROR");
   }
-};
+}; 

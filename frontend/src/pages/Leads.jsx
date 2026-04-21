@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { leadsApi } from "../services/api.js";
 import { Plus, Search, Filter, Edit2, Trash2, X, ChevronLeft, ChevronRight, Users, Loader2 } from "lucide-react";
 
@@ -129,6 +130,7 @@ const Leads = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const navigate = useNavigate();
 
   const fetchLeads = useCallback(async (page = 1) => {
     setLoading(true);
@@ -155,11 +157,18 @@ const Leads = () => {
   const handleCreate = async (data) => {
     setSaving(true);
     try {
-      await leadsApi.create(data);
+      const res = await leadsApi.create(data);
       setShowAddModal(false);
-      fetchLeads(pagination.page);
+      navigate(`/leads/${res.data.data._id}`);
     } catch (err) {
-      alert(err.response?.data?.error?.message || "Failed to create lead");
+      if (err.response?.status === 409 && err.response?.data?.error?.details?.existingLeadId) {
+        if (window.confirm("A lead with this email already exists. Do you want to view their dashboard?")) {
+          setShowAddModal(false);
+          navigate(`/leads/${err.response.data.error.details.existingLeadId}`);
+        }
+      } else {
+        alert(err.response?.data?.error?.message || "Failed to create lead");
+      }
     } finally {
       setSaving(false);
     }
@@ -282,10 +291,10 @@ const Leads = () => {
                   </td>
                 </tr>
               ) : leads.map(lead => (
-                <tr key={lead._id} className="hover:bg-gray-800/30 transition-colors cursor-pointer group">
+                <tr key={lead._id} onClick={() => navigate(`/leads/${lead._id}`)} className="hover:bg-gray-800/30 transition-colors cursor-pointer group">
                   <td className="px-5 py-4">
                     <div>
-                      <p className="text-sm font-medium text-white">{lead.name}</p>
+                      <p className="text-sm font-medium text-white group-hover:text-indigo-400 transition-colors">{lead.name}</p>
                       <p className="text-xs text-gray-500 md:hidden">{lead.email}</p>
                       {lead.company && <p className="text-xs text-gray-500">{lead.company}</p>}
                     </div>

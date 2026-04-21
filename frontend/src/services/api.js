@@ -31,6 +31,8 @@ export const authApi = {
   login: (data) => api.post("/auth/login", data),
   register: (data) => api.post("/auth/register", data),
   getMe: () => api.get("/auth/me"),
+  updateProfile: (data) => api.put("/auth/profile", data),
+  changePassword: (data) => api.put("/auth/password", data),
 };
 
 // Dashboard
@@ -68,5 +70,30 @@ export const analyticsApi = {
   getConversionFunnel: () => api.get("/analytics/conversion-funnel"),
   getDealStatusBreakdown: () => api.get("/analytics/deal-status-breakdown"),
 };
+
+// Notifications
+export const notificationsApi = {
+  getAll: (params) => api.get("/notifications", { params }),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put("/notifications/read-all"),
+};
+
+// Notes
+export const notesApi = {
+  getByLead: (leadId) => api.get(`/notes/${leadId}`),
+  create: (data) => api.post("/notes", data),
+  update: (id, data) => api.put(`/notes/${id}`, data),
+  delete: (id) => api.delete(`/notes/${id}`),
+};
+
+// Reminders
+export const remindersApi = {
+  getUpcoming: () => api.get("/reminders/upcoming"),
+  getByLead: (leadId) => api.get(`/reminders/lead/${leadId}`),
+  create: (data) => api.post("/reminders", data),
+  complete: (id) => api.put(`/reminders/${id}/complete`),
+  delete: (id) => api.delete(`/reminders/${id}`),
+};
+
 
 export default api;

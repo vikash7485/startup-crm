@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { dashboardApi } from "../services/api.js";
-import { Users, Briefcase, Trophy, DollarSign, TrendingUp, TrendingDown, Clock, RefreshCw, UserPlus, FileText, ArrowRight } from "lucide-react";
+import { dashboardApi, remindersApi } from "../services/api.js";
+import { Users, Briefcase, Trophy, DollarSign, TrendingUp, TrendingDown, Clock, RefreshCw, UserPlus, FileText, ArrowRight, Bell, Calendar, Check } from "lucide-react";
 
 const KPICard = ({ title, value, icon: Icon, color, trend, onClick }) => {
   const colorClasses = {
@@ -81,6 +81,7 @@ function timeAgo(dateStr) {
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -89,12 +90,14 @@ const Dashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const [statsRes, activitiesRes] = await Promise.all([
+      const [statsRes, activitiesRes, remRes] = await Promise.all([
         dashboardApi.getStats(),
-        dashboardApi.getActivities({ limit: 10 })
+        dashboardApi.getActivities({ limit: 10 }),
+        remindersApi.getUpcoming().catch(() => ({ data: { data: [] } }))
       ]);
       setStats(statsRes.data.data);
       setActivities(activitiesRes.data.data.activities);
+      setReminders(remRes.data?.data || []);
     } catch (err) {
       setError(err.response?.data?.error?.message || "Failed to load dashboard");
     } finally {
@@ -103,6 +106,15 @@ const Dashboard = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  const handleCompleteReminder = async (remId) => {
+    try {
+      await remindersApi.complete(remId);
+      setReminders(reminders.filter(r => r._id !== remId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
@@ -150,45 +162,85 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Recent Activities */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 animate-fade-in">
-        <h2 className="text-lg font-semibold text-white mb-4">Recent Activities</h2>
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="flex items-center gap-3 p-3">
-                <div className="h-9 w-9 skeleton rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-3/4 skeleton rounded" />
-                  <div className="h-3 w-20 skeleton rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : activities.length === 0 ? (
-          <div className="text-center py-8">
-            <Clock size={36} className="mx-auto text-gray-600 mb-3" />
-            <p className="text-gray-500">No recent activities</p>
-          </div>
-        ) : (
-          <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
-            {activities.slice(0, 5).map((activity) => {
-              const iconData = activityIcons[activity.activity_type] || activityIcons.lead_created;
-              const IconComp = iconData.icon;
-              return (
-                <div key={activity._id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800/50 transition-colors group">
-                  <div className={`p-2 rounded-xl ${iconData.color}`}>
-                    <IconComp size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-200 truncate">{activity.description}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{timeAgo(activity.created_at)}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Activities */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 animate-fade-in">
+          <h2 className="text-lg font-semibold text-white mb-4">Recent Activities</h2>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex items-center gap-3 p-3">
+                  <div className="h-9 w-9 skeleton rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-3/4 skeleton rounded" />
+                    <div className="h-3 w-20 skeleton rounded" />
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="text-center py-8">
+              <Clock size={36} className="mx-auto text-gray-600 mb-3" />
+              <p className="text-gray-500">No recent activities</p>
+            </div>
+          ) : (
+            <div className="space-y-1 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+              {activities.slice(0, 5).map((activity) => {
+                const iconData = activityIcons[activity.activity_type] || activityIcons.lead_created;
+                const IconComp = iconData.icon;
+                return (
+                  <div key={activity._id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800/50 transition-colors group">
+                    <div className={`p-2 rounded-xl ${iconData.color}`}>
+                      <IconComp size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-200 truncate">{activity.description}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{timeAgo(activity.created_at)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Upcoming Reminders */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 animate-fade-in flex flex-col">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Bell size={20} className="text-amber-400" /> Upcoming Reminders
+          </h2>
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <RefreshCw size={24} className="animate-spin text-indigo-500" />
+            </div>
+          ) : reminders.length === 0 ? (
+            <div className="text-center py-8 flex-1 flex flex-col justify-center">
+              <Calendar size={36} className="mx-auto text-gray-600 mb-3" />
+              <p className="text-gray-500">You're all caught up!</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+              {reminders.map(rem => (
+                <div key={rem._id} className="flex items-start gap-3 p-3 border border-gray-800 bg-gray-800/30 rounded-xl hover:border-gray-700 transition-colors">
+                  <button 
+                    onClick={() => handleCompleteReminder(rem._id)}
+                    className="mt-1 h-5 w-5 shrink-0 rounded-full border border-gray-500 flex items-center justify-center text-transparent hover:border-indigo-400 transition-colors"
+                  >
+                    <Check size={12} strokeWidth={3} />
+                  </button>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/leads/${rem.leadId?._id}`)}>
+                    <p className="text-sm font-medium text-gray-200 truncate">{rem.title}</p>
+                    <p className="text-xs text-amber-400/80 mt-1 flex items-center gap-1.5 flex-wrap">
+                      <Calendar size={12} /> 
+                      {new Date(rem.reminderDate).toLocaleDateString()} {new Date(rem.reminderDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {rem.leadId && <span className="ml-2 px-1.5 py-0.5 rounded-md bg-gray-800 text-gray-400">@ {rem.leadId.name}</span>}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

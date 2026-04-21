@@ -1,5 +1,6 @@
 import Lead from "../models/Lead.js";
 import Activity from "../models/Activity.js";
+import Notification from "../models/Notification.js";
 import { successResponse, errorResponse, paginatedResponse } from "../services/utils/responseHelper.js";
 import { invalidateCache } from "./dashboardController.js";
 
@@ -12,7 +13,8 @@ export const getLeads = async (req, res) => {
     const skip = (page - 1) * limit;
     const { search, status, source, sort_by = "created_at", sort_order = "desc" } = req.query;
 
-    const filter = { user_id: userId, deleted_at: null };
+    const filter = { deleted_at: null };
+    if (req.user.role !== "admin") filter.user_id = userId;
 
     if (status && status !== "all") filter.status = status;
     if (source && source !== "all") filter.source = source;
@@ -47,7 +49,9 @@ export const getLeads = async (req, res) => {
 // GET /api/leads/:id
 export const getLeadById = async (req, res) => {
   try {
-    const lead = await Lead.findOne({ _id: req.params.id, user_id: req.user.id, deleted_at: null });
+    const query = { _id: req.params.id, deleted_at: null };
+    if (req.user.role !== "admin") query.user_id = req.user.id;
+    const lead = await Lead.findOne(query);
     if (!lead) return errorResponse(res, "Lead not found", 404, "NOT_FOUND");
     return successResponse(res, lead);
   } catch (error) {
@@ -66,7 +70,7 @@ export const createLead = async (req, res) => {
 
     // Check duplicate email
     const existing = await Lead.findOne({ email: email.toLowerCase(), deleted_at: null });
-    if (existing) return errorResponse(res, "Lead with this email already exists", 409, "CONFLICT");
+    if (existing) return errorResponse(res, "Lead with this email already exists", 409, "CONFLICT", { existingLeadId: existing._id });
 
     const lead = await Lead.create({
       user_id: userId,
@@ -82,6 +86,13 @@ export const createLead = async (req, res) => {
       activity_type: "lead_created",
       description: `New lead "${name}" was created`,
       related_entity: `lead_${lead._id}`
+    });
+
+    // Notify user
+    await Notification.create({
+      userId: userId,
+      message: `New Lead "${name}" was successfully added.`,
+      type: "lead_created"
     });
 
     invalidateCache(userId);
@@ -100,13 +111,15 @@ export const updateLead = async (req, res) => {
 
     if (name && name.length < 3) return errorResponse(res, "Name must be at least 3 characters", 422, "VALIDATION_ERROR");
 
-    const lead = await Lead.findOne({ _id: req.params.id, user_id: userId, deleted_at: null });
+    const query = { _id: req.params.id, deleted_at: null };
+    if (req.user.role !== "admin") query.user_id = userId;
+    const lead = await Lead.findOne(query);
     if (!lead) return errorResponse(res, "Lead not found", 404, "NOT_FOUND");
 
     // Check duplicate email if email changed
     if (email && email.toLowerCase() !== lead.email) {
       const existing = await Lead.findOne({ email: email.toLowerCase(), deleted_at: null, _id: { $ne: lead._id } });
-      if (existing) return errorResponse(res, "Lead with this email already exists", 409, "CONFLICT");
+      if (existing) return errorResponse(res, "Lead with this email already exists", 409, "CONFLICT", { existingLeadId: existing._id });
     }
 
     const oldStatus = lead.status;
@@ -144,7 +157,9 @@ export const updateLead = async (req, res) => {
 export const deleteLead = async (req, res) => {
   try {
     const userId = req.user.id;
-    const lead = await Lead.findOne({ _id: req.params.id, user_id: userId, deleted_at: null });
+    const query = { _id: req.params.id, deleted_at: null };
+    if (req.user.role !== "admin") query.user_id = userId;
+    const lead = await Lead.findOne(query);
     if (!lead) return errorResponse(res, "Lead not found", 404, "NOT_FOUND");
 
     lead.deleted_at = new Date();

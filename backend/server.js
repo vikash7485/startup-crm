@@ -9,6 +9,10 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import leadRoutes from "./routes/leadRoutes.js";
 import dealRoutes from "./routes/dealRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import noteRoutes from "./routes/noteRoutes.js";
+import reminderRoutes from "./routes/reminderRoutes.js";
+
 
 dotenv.config();
 
@@ -33,6 +37,10 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/deals", dealRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/notes", noteRoutes);
+app.use("/api/reminders", reminderRoutes);
+
 
 // health check
 app.get("/", (req, res) => {

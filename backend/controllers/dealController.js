@@ -1,5 +1,6 @@
 import Deal from "../models/Deal.js";
 import DealActivity from "../models/DealActivity.js";
+import Notification from "../models/Notification.js";
 import Activity from "../models/Activity.js";
 import Lead from "../models/Lead.js";
 import { successResponse, errorResponse } from "../services/utils/responseHelper.js";
@@ -11,7 +12,8 @@ export const getDeals = async (req, res) => {
     const userId = req.user.id;
     const { status, lead_id, sort_by = "created_at", sort_order = "desc" } = req.query;
 
-    const filter = { user_id: userId };
+    const filter = {};
+    if (req.user.role !== "admin") filter.user_id = userId;
     if (status) filter.status = status;
     if (lead_id) filter.lead_id = lead_id;
 
@@ -30,7 +32,9 @@ export const getDeals = async (req, res) => {
 export const getKanban = async (req, res) => {
   try {
     const userId = req.user.id;
-    const deals = await Deal.find({ user_id: userId }).populate("lead_id", "name email company").lean();
+    const filter = {};
+    if (req.user.role !== "admin") filter.user_id = userId;
+    const deals = await Deal.find(filter).populate("lead_id", "name email company").lean();
 
     const kanban = {
       "to-do": [],
@@ -52,7 +56,9 @@ export const getKanban = async (req, res) => {
 // GET /api/deals/:id
 export const getDealById = async (req, res) => {
   try {
-    const deal = await Deal.findOne({ _id: req.params.id, user_id: req.user.id })
+    const query = { _id: req.params.id };
+    if (req.user.role !== "admin") query.user_id = req.user.id;
+    const deal = await Deal.findOne(query)
       .populate("lead_id", "name email company phone");
     if (!deal) return errorResponse(res, "Deal not found", 404, "NOT_FOUND");
 
@@ -75,7 +81,9 @@ export const createDeal = async (req, res) => {
     if (!lead_id) return errorResponse(res, "Lead is required", 422, "VALIDATION_ERROR");
 
     // Verify lead exists and belongs to user
-    const lead = await Lead.findOne({ _id: lead_id, user_id: userId, deleted_at: null });
+    const leadQuery = { _id: lead_id, deleted_at: null };
+    if (req.user.role !== "admin") leadQuery.user_id = userId;
+    const lead = await Lead.findOne(leadQuery);
     if (!lead) return errorResponse(res, "Lead not found or doesn't belong to you", 404, "NOT_FOUND");
 
     const deal = await Deal.create({
@@ -102,6 +110,12 @@ export const createDeal = async (req, res) => {
       related_entity: `deal_${deal._id}`
     });
 
+    await Notification.create({
+      userId: userId,
+      message: `A new deal "${title}" was created for ${lead.name}`,
+      type: "deal_created"
+    });
+
     invalidateCache(userId);
     return successResponse(res, deal, 201);
   } catch (error) {
@@ -115,7 +129,9 @@ export const updateDeal = async (req, res) => {
     const { title, value, status, deal_type, probability, expected_close_date, notes } = req.body;
     const userId = req.user.id;
 
-    const deal = await Deal.findOne({ _id: req.params.id, user_id: userId });
+    const query = { _id: req.params.id };
+    if (req.user.role !== "admin") query.user_id = userId;
+    const deal = await Deal.findOne(query);
     if (!deal) return errorResponse(res, "Deal not found", 404, "NOT_FOUND");
 
     const oldStatus = deal.status;
@@ -152,6 +168,11 @@ export const updateDeal = async (req, res) => {
         activity_type: status === "closed" ? "deal_closed" : "deal_status_changed",
         description: `Deal "${deal.title}" moved from "${oldStatus}" to "${status}"`,
         related_entity: `deal_${deal._id}`
+      });
+      await Notification.create({
+        userId: userId,
+        message: `Deal "${deal.title}" was moved to ${status}.`,
+        type: status === "closed" ? "deal_closed" : "deal_status_changed"
       });
     }
 
@@ -191,7 +212,9 @@ export const updateDealStatus = async (req, res) => {
       return errorResponse(res, "Invalid status", 422, "VALIDATION_ERROR");
     }
 
-    const deal = await Deal.findOne({ _id: req.params.id, user_id: userId });
+    const query = { _id: req.params.id };
+    if (req.user.role !== "admin") query.user_id = userId;
+    const deal = await Deal.findOne(query);
     if (!deal) return errorResponse(res, "Deal not found", 404, "NOT_FOUND");
 
     const oldStatus = deal.status;
@@ -214,6 +237,12 @@ export const updateDealStatus = async (req, res) => {
       related_entity: `deal_${deal._id}`
     });
 
+    await Notification.create({
+      userId: userId,
+      message: `Deal "${deal.title}" was moved to ${status}.`,
+      type: status === "closed" ? "deal_closed" : "deal_status_changed"
+    });
+
     invalidateCache(userId);
     return successResponse(res, deal);
   } catch (error) {
@@ -225,7 +254,9 @@ export const updateDealStatus = async (req, res) => {
 export const deleteDeal = async (req, res) => {
   try {
     const userId = req.user.id;
-    const deal = await Deal.findOne({ _id: req.params.id, user_id: userId });
+    const query = { _id: req.params.id };
+    if (req.user.role !== "admin") query.user_id = userId;
+    const deal = await Deal.findOne(query);
     if (!deal) return errorResponse(res, "Deal not found", 404, "NOT_FOUND");
 
     await Deal.deleteOne({ _id: deal._id });
